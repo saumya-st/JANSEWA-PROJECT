@@ -18,7 +18,13 @@ import { issuesAPI } from '../services/api';
 export const Dashboard = () => {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0,
+    critical: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,16 +34,30 @@ export const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // Mock data for demo
-      await new Promise(resolve => setTimeout(resolve, 800));
+      if (!user?.uid) return;
 
-      setStats({
-        total: 24,
-        pending: 8,
-        inProgress: 10,
-        completed: 6,
-        critical: 3,
-      });
+      const allIssues = await issuesAPI.listAllIssues({ limit: 500 });
+
+      const relevantIssues =
+        user.role === ROLES.CITIZEN
+          ? allIssues.filter((i) => i.createdByUid === user.uid)
+          : user.role === ROLES.ENGINEER
+          ? allIssues.filter((i) => i.assignedToUid === user.uid)
+          : allIssues;
+
+      const nextStats = relevantIssues.reduce(
+        (acc, issue) => {
+          acc.total += 1;
+          if (issue.status === 'pending') acc.pending += 1;
+          if (issue.status === 'in_progress') acc.inProgress += 1;
+          if (issue.status === 'completed') acc.completed += 1;
+          if (String(issue.priority || '').toLowerCase() === 'critical') acc.critical += 1;
+          return acc;
+        },
+        { total: 0, pending: 0, inProgress: 0, completed: 0, critical: 0 }
+      );
+
+      setStats(nextStats);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -45,28 +65,47 @@ export const Dashboard = () => {
     }
   };
 
+  const statCards = (() => {
+    if (user?.role === ROLES.CITIZEN) {
+      return [
+        { key: 'total', label: 'My Issues', icon: FileText, color: 'blue' },
+        { key: 'pending', label: 'Pending', icon: Clock, color: 'yellow' },
+        { key: 'completed', label: 'Completed', icon: CheckCircle, color: 'green' },
+      ];
+    }
+
+    if (user?.role === ROLES.ENGINEER) {
+      return [
+        { key: 'total', label: 'Assigned', icon: FileText, color: 'blue' },
+        { key: 'pending', label: 'Pending', icon: Clock, color: 'yellow' },
+        { key: 'inProgress', label: 'In Progress', icon: TrendingUp, color: 'orange' },
+        { key: 'completed', label: 'Completed', icon: CheckCircle, color: 'green' },
+      ];
+    }
+
+    if (user?.role === ROLES.SUPERVISOR) {
+      return [
+        { key: 'total', label: 'Total Issues', icon: FileText, color: 'blue' },
+        { key: 'critical', label: 'Critical', icon: AlertCircle, color: 'red' },
+        { key: 'inProgress', label: 'In Progress', icon: TrendingUp, color: 'orange' },
+        { key: 'completed', label: 'Resolved', icon: CheckCircle, color: 'green' },
+      ];
+    }
+
+    return [];
+  })();
+
+  const renderStatsGrid = () => (
+    <div className={`grid grid-cols-1 md:grid-cols-${statCards.length === 3 ? '3' : '4'} gap-6 mb-8`}>
+      {statCards.map(({ key, label, icon, color }) => (
+        <StatCard key={key} icon={icon} label={label} value={stats[key] ?? 0} color={color} />
+      ))}
+    </div>
+  );
+
   const renderCitizenDashboard = () => (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard
-          icon={FileText}
-          label="My Issues"
-          value={stats?.total || 0}
-          color="blue"
-        />
-        <StatCard
-          icon={Clock}
-          label="Pending"
-          value={stats?.pending || 0}
-          color="yellow"
-        />
-        <StatCard
-          icon={CheckCircle}
-          label="Completed"
-          value={stats?.completed || 0}
-          color="green"
-        />
-      </div>
+      {renderStatsGrid()}
 
       <div className="bg-gradient-to-r from-primary to-accent rounded-xl p-8 text-primary-foreground mb-8">
         <h2 className="text-2xl font-bold mb-2">Report a New Issue</h2>
@@ -86,32 +125,7 @@ export const Dashboard = () => {
 
   const renderEngineerDashboard = () => (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          icon={FileText}
-          label="Assigned"
-          value={stats?.total || 0}
-          color="blue"
-        />
-        <StatCard
-          icon={Clock}
-          label="Pending"
-          value={stats?.pending || 0}
-          color="yellow"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="In Progress"
-          value={stats?.inProgress || 0}
-          color="orange"
-        />
-        <StatCard
-          icon={CheckCircle}
-          label="Completed"
-          value={stats?.completed || 0}
-          color="green"
-        />
-      </div>
+      {renderStatsGrid()}
 
       <div className="bg-card rounded-xl border border-border p-6">
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
@@ -130,32 +144,7 @@ export const Dashboard = () => {
 
   const renderSupervisorDashboard = () => (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          icon={FileText}
-          label="Total Issues"
-          value={stats?.total || 0}
-          color="blue"
-        />
-        <StatCard
-          icon={AlertCircle}
-          label="Critical"
-          value={stats?.critical || 0}
-          color="red"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="In Progress"
-          value={stats?.inProgress || 0}
-          color="orange"
-        />
-        <StatCard
-          icon={CheckCircle}
-          label="Resolved"
-          value={stats?.completed || 0}
-          color="green"
-        />
-      </div>
+      {renderStatsGrid()}
 
       <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-8 text-white">
         <h2 className="text-2xl font-bold mb-2">Map Overview</h2>

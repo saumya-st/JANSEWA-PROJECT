@@ -56,7 +56,7 @@ export const IssueCard = ({ issue, className = '' }) => {
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{issue.description}</p>
+      <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{issue.description}</p>
 
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
         {issue.location && (
@@ -75,12 +75,12 @@ export const IssueCard = ({ issue, className = '' }) => {
         )}
       </div>
 
-      {issue.image && (
+      {issue.imageUrl && (
         <div className="mt-auto pt-3">
           <img
-            src={issue.image}
+            src={issue.imageUrl}
             alt={issue.title}
-            className="w-full h-32 object-cover rounded"
+            className="w-full h-32 object-contain rounded bg-slate-100"
           />
         </div>
       )}

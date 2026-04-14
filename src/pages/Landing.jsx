@@ -90,14 +90,7 @@ export const Landing = () => {
                   <ArrowRight className="h-5 w-5" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => navigate('/login')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card/80 px-6 py-3 font-medium text-foreground shadow-sm shadow-black/10 backdrop-blur transition hover:bg-accent/20"
-                >
-                  Get Started
-                </button>
-              </div>
+                          </div>
 
               <div className="mt-8 grid grid-cols-2 gap-3 text-sm text-muted-foreground">
                 <div className="rounded-xl border border-border bg-card/60 p-4 shadow-sm shadow-black/10 backdrop-blur animate-card-fade">
@@ -161,13 +154,6 @@ export const Landing = () => {
       <footer className="relative z-10 border-t border-border">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 text-sm text-muted-foreground flex items-center justify-between">
           <span>© {new Date().getFullYear()} JanSeva Infra</span>
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-foreground transition"
-            onClick={() => navigate('/login')}
-          >
-            Login
-          </button>
         </div>
       </footer>
     </div>

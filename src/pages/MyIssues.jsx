@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
 import { IssueCard } from '../components/IssueCard';
@@ -8,53 +9,21 @@ import { issuesAPI } from '../services/api';
 import { toast } from 'sonner';
 
 export const MyIssues = () => {
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [issues, setIssues] = useState([]);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetchMyIssues();
-  }, []);
+    if (user?.uid) fetchMyIssues();
+  }, [user?.uid]);
 
   const fetchMyIssues = async () => {
     try {
       setLoading(true);
-      // Mock data for demo
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const mockIssues = [
-        {
-          id: '1',
-          title: 'Broken streetlight on Main Street',
-          description: 'The streetlight has been out for 3 days, making the area unsafe at night.',
-          status: 'in_progress',
-          priority: 'High',
-          location: { lat: 40.7128, lng: -74.006, address: 'Main Street' },
-          image: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400',
-          createdAt: '2026-04-08T10:00:00Z',
-        },
-        {
-          id: '2',
-          title: 'Pothole on Elm Avenue',
-          description: 'Large pothole causing damage to vehicles.',
-          status: 'pending',
-          priority: 'Medium',
-          location: { lat: 40.7589, lng: -73.9851, address: 'Elm Avenue' },
-          createdAt: '2026-04-09T14:30:00Z',
-        },
-        {
-          id: '3',
-          title: 'Overflowing garbage bin',
-          description: 'Public bin has been full for days, attracting pests.',
-          status: 'completed',
-          priority: 'Low',
-          location: { lat: 40.7488, lng: -73.9857, address: 'Park Avenue' },
-          createdAt: '2026-04-05T09:15:00Z',
-        },
-      ];
-
-      setIssues(mockIssues);
+      const data = await issuesAPI.listMyIssues(user.uid);
+      setIssues(data);
     } catch (error) {
       console.error('Error fetching issues:', error);
       toast.error('Failed to load issues');
@@ -73,7 +42,7 @@ export const MyIssues = () => {
       <Navbar onMenuClick={() => setSidebarOpen(true)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="lg:pl-64 pt-16">
+      <main className="pt-16 lg:pl-64">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between mb-8">
             <div>

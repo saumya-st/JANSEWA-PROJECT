@@ -28,51 +28,8 @@ export const IssueDetails = () => {
   const fetchIssueDetails = async () => {
     try {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Mock data
-      const mockIssue = {
-        id: id,
-        title: 'Broken streetlight on Main Street',
-        description: 'The streetlight has been out for 3 days, making the area unsafe at night. This is a major safety concern for pedestrians and motorists.',
-        status: 'in_progress',
-        priority: 'High',
-        location: {
-          lat: 40.7128,
-          lng: -74.006,
-          address: 'Main Street, New York, NY',
-        },
-        image: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=800',
-        createdAt: '2026-04-08T10:00:00Z',
-        updatedAt: '2026-04-10T14:30:00Z',
-        reportedBy: {
-          name: 'Jane Doe',
-          email: 'jane@example.com',
-        },
-        assignedTo: {
-          name: 'John Smith',
-          email: 'john@example.com',
-        },
-        timeline: [
-          {
-            date: '2026-04-08T10:00:00Z',
-            event: 'Issue Reported',
-            description: 'Issue was reported by Jane Doe',
-          },
-          {
-            date: '2026-04-09T09:00:00Z',
-            event: 'Engineer Assigned',
-            description: 'John Smith was assigned to this issue',
-          },
-          {
-            date: '2026-04-10T14:30:00Z',
-            event: 'Status Updated',
-            description: 'Status changed to In Progress',
-          },
-        ],
-      };
-
-      setIssue(mockIssue);
+      const data = await issuesAPI.getIssue(id);
+      setIssue(data);
     } catch (error) {
       console.error('Error fetching issue details:', error);
       toast.error('Failed to load issue details');
@@ -82,6 +39,7 @@ export const IssueDetails = () => {
   };
 
   const formatDate = (date) => {
+    if (!date) return '';
     return new Date(date).toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
@@ -121,11 +79,11 @@ export const IssueDetails = () => {
           </button>
 
           <div className="bg-card rounded-xl border border-border overflow-hidden">
-            {issue?.image && (
+            {issue?.imageUrl && (
               <img
-                src={issue.image}
+                src={issue.imageUrl}
                 alt={issue.title}
-                className="w-full h-64 object-cover"
+                className="w-full h-64 object-contain bg-slate-100"
               />
             )}
 
@@ -163,7 +121,7 @@ export const IssueDetails = () => {
                     <p className="text-sm font-medium text-foreground">Location</p>
                     <p className="text-sm text-muted-foreground">{issue?.location?.address}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {issue?.location?.lat.toFixed(6)}, {issue?.location?.lng.toFixed(6)}
+                      {issue?.location?.lat?.toFixed?.(6)}, {issue?.location?.lng?.toFixed?.(6)}
                     </p>
                   </div>
                 </div>

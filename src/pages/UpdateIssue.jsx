@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import { useAuth } from '../hooks/useAuth';
 import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
 import { Loader } from '../components/Loader';
-import { Camera, CheckCircle } from 'lucide-react';
+import { Camera, CheckCircle, X } from 'lucide-react';
 import { issuesAPI } from '../services/api';
+import { uploadImageToSupabase, deleteImageFromSupabase } from '../utils/supabaseImageUpload';
 import { toast } from 'sonner';
 
 export const UpdateIssue = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -17,6 +20,8 @@ export const UpdateIssue = () => {
   const [formData, setFormData] = useState({
     status: '',
     remarks: '',
+    issueImageFile: null,
+    issueImagePreview: null,
     completionImage: null,
     completionImagePreview: null,
   });
@@ -28,22 +33,9 @@ export const UpdateIssue = () => {
   const fetchIssueDetails = async () => {
     try {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Mock data
-      const mockIssue = {
-        id: id,
-        title: 'Water leak on Oak Street',
-        description: 'Major water leak from underground pipe causing road flooding.',
-        status: 'in_progress',
-        priority: 'Critical',
-        location: { lat: 40.7614, lng: -73.9776, address: 'Oak Street' },
-        image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400',
-        createdAt: '2026-04-10T08:00:00Z',
-      };
-
-      setIssue(mockIssue);
-      setFormData((prev) => ({ ...prev, status: mockIssue.status }));
+      const data = await issuesAPI.getIssue(id);
+      setIssue(data);
+      setFormData((prev) => ({ ...prev, status: data?.status || '' }));
     } catch (error) {
       console.error('Error fetching issue:', error);
       toast.error('Failed to load issue details');
@@ -67,6 +59,29 @@ export const UpdateIssue = () => {
     }
   };
 
+  const handleIssueImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          issueImageFile: file,
+          issueImagePreview: reader.result,
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearIssueImage = () => {
+    setFormData((prev) => ({
+      ...prev,
+      issueImageFile: null,
+      issueImagePreview: null,
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -78,12 +93,41 @@ export const UpdateIssue = () => {
     setSubmitting(true);
 
     try {
-      await issuesAPI.updateIssue(id, {
+      const updatePayload = {
         status: formData.status,
         remarks: formData.remarks,
-        completionImage: formData.completionImage,
-        updatedAt: new Date().toISOString(),
-      });
+      };
+
+      // Handle issue image upload if a new one is selected
+      if (formData.issueImageFile) {
+        try {
+          toast.loading('Uploading new issue image...');
+          const uploadResult = await uploadImageToSupabase(formData.issueImageFile, user.uid);
+          updatePayload.imageUrl = uploadResult.url;
+
+          // Delete old image from Supabase if it exists
+          if (issue?.imageUrl) {
+            const oldFilePath = issue.imageUrl.split('/').pop();
+            if (oldFilePath) {
+              const fullPath = `${user.uid}/${oldFilePath}`;
+              await deleteImageFromSupabase(fullPath);
+            }
+          }
+
+          toast.dismiss();
+        } catch (error) {
+          toast.error(`Failed to upload image: ${error.message}`);
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Handle completion image as base64 (for now)
+      if (formData.completionImage) {
+        updatePayload.completionImage = formData.completionImage;
+      }
+
+      await issuesAPI.updateIssue(id, updatePayload);
 
       toast.success('Issue updated successfully!');
       navigate('/assigned');
@@ -140,12 +184,12 @@ export const UpdateIssue = () => {
                   </span>
                 </dd>
               </div>
-              {issue?.image && (
+              {issue?.imageUrl && (
                 <div>
                   <dt className="text-sm text-muted-foreground mb-2">Issue Image</dt>
                   <dd>
                     <img
-                      src={issue.image}
+                      src={issue.imageUrl}
                       alt="Issue"
                       className="w-full max-w-md rounded-lg"
                     />
@@ -190,6 +234,57 @@ export const UpdateIssue = () => {
                   className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Add any notes or comments about the resolution..."
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Update Issue Image (Optional)
+                </label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Upload a new image to replace the current issue image
+                </p>
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-border rounded-lg hover:border-blue-400 transition-colors">
+                  <div className="space-y-1 text-center">
+                    {formData.issueImagePreview ? (
+                      <div className="relative">
+                        <img
+                          src={formData.issueImagePreview}
+                          alt="New Issue"
+                          className="mx-auto h-48 w-auto rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={clearIssueImage}
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          New image selected. Click X to remove.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <Camera className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <div className="flex text-sm text-muted-foreground">
+                          <label className="relative cursor-pointer text-blue-600 hover:text-blue-500 font-medium">
+                            <span>Upload an image</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleIssueImageChange}
+                              className="sr-only"
+                            />
+                          </label>
+                          <p className="pl-1">or drag and drop</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          PNG, JPG, GIF up to 10MB
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {formData.status === 'completed' && (

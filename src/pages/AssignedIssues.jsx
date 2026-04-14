@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useAuth } from '../hooks/useAuth';
 import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
 import { IssueCard } from '../components/IssueCard';
@@ -10,58 +11,21 @@ import { toast } from 'sonner';
 
 export const AssignedIssues = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [issues, setIssues] = useState([]);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetchAssignedIssues();
-  }, []);
+    if (user?.uid) fetchAssignedIssues();
+  }, [user?.uid]);
 
   const fetchAssignedIssues = async () => {
     try {
       setLoading(true);
-      // Mock data for demo
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const mockIssues = [
-        {
-          id: '4',
-          title: 'Water leak on Oak Street',
-          description: 'Major water leak from underground pipe causing road flooding.',
-          status: 'in_progress',
-          priority: 'Critical',
-          location: { lat: 40.7614, lng: -73.9776, address: 'Oak Street' },
-          image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400',
-          createdAt: '2026-04-10T08:00:00Z',
-          assignedAt: '2026-04-10T09:00:00Z',
-        },
-        {
-          id: '5',
-          title: 'Damaged sidewalk near school',
-          description: 'Cracked sidewalk posing safety hazard for children.',
-          status: 'pending',
-          priority: 'High',
-          location: { lat: 40.7580, lng: -73.9855, address: 'School Road' },
-          createdAt: '2026-04-09T11:00:00Z',
-          assignedAt: '2026-04-10T10:30:00Z',
-        },
-        {
-          id: '6',
-          title: 'Graffiti on public wall',
-          description: 'Offensive graffiti needs to be cleaned.',
-          status: 'completed',
-          priority: 'Medium',
-          location: { lat: 40.7549, lng: -73.9840, address: 'Public Park' },
-          image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400',
-          createdAt: '2026-04-07T15:00:00Z',
-          assignedAt: '2026-04-08T09:00:00Z',
-          completedAt: '2026-04-09T16:00:00Z',
-        },
-      ];
-
-      setIssues(mockIssues);
+      const data = await issuesAPI.listAssignedIssues(user.uid);
+      setIssues(data);
     } catch (error) {
       console.error('Error fetching assigned issues:', error);
       toast.error('Failed to load assigned issues');

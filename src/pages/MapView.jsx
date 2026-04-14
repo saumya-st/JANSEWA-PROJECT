@@ -31,8 +31,9 @@ export const MapView = () => {
   const [engineers, setEngineers] = useState([]);
   const [assigningIssue, setAssigningIssue] = useState(null);
   const [selectedEngineer, setSelectedEngineer] = useState('');
+  const [assignSubmitting, setAssignSubmitting] = useState(false);
 
-  const defaultCenter = [40.7128, -74.006]; // New York City
+  const defaultCenter = [20.5937, 78.9629]; // New Delhi
 
   useEffect(() => {
     fetchMapData();
@@ -41,57 +42,21 @@ export const MapView = () => {
   const fetchMapData = async () => {
     try {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Mock data
-      const mockIssues = [
-        {
-          id: '1',
-          title: 'Broken streetlight',
-          description: 'Streetlight out for 3 days',
-          status: 'pending',
-          priority: 'High',
-          location: { lat: 40.7128, lng: -74.006 },
-          createdAt: '2026-04-08T10:00:00Z',
-        },
-        {
-          id: '2',
-          title: 'Pothole on Elm Avenue',
-          description: 'Large pothole causing damage',
-          status: 'in_progress',
-          priority: 'Medium',
-          location: { lat: 40.7589, lng: -73.9851 },
-          createdAt: '2026-04-09T14:30:00Z',
-          assignedTo: { name: 'John Smith' },
-        },
-        {
-          id: '3',
-          title: 'Overflowing garbage bin',
-          description: 'Bin full for days',
-          status: 'completed',
-          priority: 'Low',
-          location: { lat: 40.7488, lng: -73.9857 },
-          createdAt: '2026-04-05T09:15:00Z',
-        },
-        {
-          id: '4',
-          title: 'Water leak',
-          description: 'Major water leak from pipe',
-          status: 'pending',
-          priority: 'Critical',
-          location: { lat: 40.7614, lng: -73.9776 },
-          createdAt: '2026-04-10T08:00:00Z',
-        },
-      ];
+      const [allIssues, engineersList] = await Promise.all([
+        issuesAPI.listAllIssues({ limit: 500 }),
+        issuesAPI.listEngineers(),
+      ]);
 
-      const mockEngineers = [
-        { id: '1', name: 'John Smith', available: true },
-        { id: '2', name: 'Sarah Johnson', available: true },
-        { id: '3', name: 'Mike Davis', available: false },
-      ];
-
-      setIssues(mockIssues);
-      setEngineers(mockEngineers);
+      setIssues(allIssues);
+      setEngineers(
+        (engineersList || []).map((e) => ({
+          id: e.id,
+          name: e.name || e.email || e.id,
+          email: e.email || '',
+          available: true,
+        }))
+      );
     } catch (error) {
       console.error('Error fetching map data:', error);
       toast.error('Failed to load map data');
@@ -106,6 +71,7 @@ export const MapView = () => {
       return;
     }
 
+    setAssignSubmitting(true);
     try {
       await issuesAPI.assignIssue(assigningIssue.id, selectedEngineer);
       toast.success('Engineer assigned successfully!');
@@ -115,6 +81,8 @@ export const MapView = () => {
     } catch (error) {
       console.error('Error assigning engineer:', error);
       toast.error('Failed to assign engineer');
+    } finally {
+      setAssignSubmitting(false);
     }
   };
 
@@ -171,7 +139,7 @@ export const MapView = () => {
             ) : (
               <MapContainer
                 center={defaultCenter}
-                zoom={13}
+                zoom={5}
                 className="h-full w-full"
                 style={{ zIndex: 0 }}
               >
@@ -179,7 +147,9 @@ export const MapView = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {issues.map((issue) => (
+                {issues
+                  .filter((issue) => issue?.location?.lat != null && issue?.location?.lng != null)
+                  .map((issue) => (
                   <Marker
                     key={issue.id}
                     position={[issue.location.lat, issue.location.lng]}
@@ -187,7 +157,7 @@ export const MapView = () => {
                   >
                     <Popup>
                       <div className="min-w-[250px] p-2">
-                        <h3 className="font-semibold text-foreground mb-2">{issue.title}</h3>
+                        <h3 className="font-semibold text-black mb-2">{issue.title}</h3>
                         <p className="text-sm text-muted-foreground mb-3">{issue.description}</p>
 
                         <div className="flex flex-wrap gap-2 mb-3">
@@ -268,10 +238,10 @@ export const MapView = () => {
               <div className="flex space-x-3">
                 <button
                   onClick={handleAssignEngineer}
-                  disabled={!selectedEngineer}
+                  disabled={!selectedEngineer || assignSubmitting}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Assign
+                  {assignSubmitting ? 'Assigning...' : 'Assign'}
                 </button>
                 <button
                   onClick={() => {

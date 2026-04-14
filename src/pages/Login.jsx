@@ -13,19 +13,16 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { getDefaultRoute } from '../utils/roleRoutes';
 
-const roles = [
-  { value: 'citizen', label: 'Citizen' },
-  { value: 'engineer', label: 'Engineer' },
-  { value: 'supervisor', label: 'Supervisor' },
-];
-
 export const Login = () => {
+  const [mode, setMode] = useState('login'); // login | signup
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedRole, setSelectedRole] = useState('citizen');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [mounted, setMounted] = useState(false);
 
-  const { user } = useAuth();
+  const { user, login, loginEmail, signup } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,31 +45,49 @@ export const Login = () => {
 
   const toggleTheme = () => setTheme(currentTheme === 'dark' ? 'light' : 'dark');
 
+  const getFirebaseErrorMessage = (err) => {
+    const code = err?.code || '';
+    switch (code) {
+      case 'auth/invalid-email':
+        return 'Please enter a valid email address.';
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential':
+        return 'Incorrect email or password.';
+      case 'auth/email-already-in-use':
+        return 'This email is already in use. Try signing in instead.';
+      case 'auth/weak-password':
+        return 'Password is too weak. Use at least 6 characters.';
+      case 'auth/popup-closed-by-user':
+        return 'Popup closed before sign in completed.';
+      default:
+        return 'Authentication failed. Please try again.';
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
 
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    const res = await login();
+    if (!res.success) setError(getFirebaseErrorMessage(res.error));
 
-      const mockUser = {
-        name: 'Demo User',
-        email: 'demo@janseva.com',
-        role: selectedRole,
-        picture: 'https://ui-avatars.com/api/?name=Demo+User&background=3b82f6&color=fff',
-      };
+    setLoading(false);
+  };
 
-      const mockToken = 'mock-jwt-token-' + Date.now();
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      window.location.reload();
-    } catch (err) {
-      setError('Failed to login. Please try again.');
-      console.error('Login error:', err);
-    } finally {
-      setLoading(false);
-    }
+    const res =
+      mode === 'signup'
+        ? await signup({ name: name.trim(), email: email.trim(), password })
+        : await loginEmail({ email: email.trim(), password });
+
+    if (!res.success) setError(getFirebaseErrorMessage(res.error));
+
+    setLoading(false);
   };
 
   return (
@@ -114,29 +129,93 @@ export const Login = () => {
           )}
 
           <div className="mb-6">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Select role for login</p>
-            <div className="grid grid-cols-3 gap-3">
-              {roles.map((role) => (
-                <button
-                  key={role.value}
-                  type="button"
-                  onClick={() => setSelectedRole(role.value)}
-                  className={`rounded-2xl border px-3 py-2 text-sm font-medium transition ${
-                    selectedRole === role.value
-                      ? 'border-ring bg-accent/10 text-foreground'
-                      : 'border-border bg-muted text-muted-foreground hover:bg-accent/20 hover:text-foreground'
-                  }`}
-                >
-                  {role.label}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setError('');
+                }}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  mode === 'login' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signup');
+                  setError('');
+                }}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  mode === 'signup' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Create account
+              </button>
             </div>
+
+            <p className="mt-3 text-xs text-muted-foreground">
+              New accounts are created as <span className="font-semibold text-foreground">citizen</span> by default. You
+              can change the role later in Firebase.
+            </p>
           </div>
+
+          <form onSubmit={handleEmailSubmit} className="space-y-3">
+            {mode === 'signup' && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Full name</label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring"
+                  placeholder="Your name"
+                  autoComplete="name"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground">Email</label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring"
+                placeholder="you@example.com"
+                type="email"
+                autoComplete="email"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground">Password</label>
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring"
+                placeholder="••••••••"
+                type="password"
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                required
+                minLength={6}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-95"
+            >
+              {mode === 'signup' ? 'Create account' : 'Sign in'}
+            </button>
+          </form>
 
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center space-x-3 px-4 py-3 border border-border rounded-lg hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-4 w-full flex items-center justify-center space-x-3 px-4 py-3 border border-border rounded-lg hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-foreground" />
@@ -160,14 +239,14 @@ export const Login = () => {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                <span className="text-foreground font-medium">Sign in with Google</span>
+                <span className="text-foreground font-medium">Continue with Google</span>
               </>
             )}
           </button>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-muted-foreground">
-              Demo Mode: login as <span className="font-semibold text-foreground">{selectedRole}</span>
+              By default, new users are registered as <span className="font-semibold text-foreground">citizen</span>.
             </p>
           </div>
         </div>
@@ -199,4 +278,3 @@ export const Login = () => {
     </div>
   );
 };
-

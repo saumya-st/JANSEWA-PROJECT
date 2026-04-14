@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useAuth } from '../hooks/useAuth';
 import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
 import { Loader } from '../components/Loader';
@@ -12,11 +13,13 @@ import {
 } from 'lucide-react';
 import { issuesAPI } from '../services/api';
 import { addIssueToQueue, getPendingCount } from '../utils/indexedDB';
+import { uploadImageToSupabase } from '../utils/supabaseImageUpload';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { toast } from 'sonner';
 
 export const ReportIssue = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [predictingPriority, setPredictingPriority] = useState(false);
@@ -26,7 +29,7 @@ export const ReportIssue = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    image: null,
+    imageFile: null,
     imagePreview: null,
     location: null,
     priority: '',
@@ -79,7 +82,7 @@ export const ReportIssue = () => {
       reader.onloadend = () => {
         setFormData((prev) => ({
           ...prev,
-          image: reader.result,
+          imageFile: file,
           imagePreview: reader.result,
         }));
       };
@@ -103,9 +106,9 @@ export const ReportIssue = () => {
     try {
       // Initialize Gemini AI
       const genAI = new GoogleGenerativeAI(
-        import.meta.env.VITE_GEMINI_API_KEY || 'YOUR_GEMINI_API_KEY_HERE'
+        import.meta.env.VITE_GEMINI_API_KEY 
       );
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       const prompt = `Analyze this civic issue report and determine its priority level (Low, Medium, High, or Critical).
 
@@ -133,9 +136,11 @@ Respond with ONLY one word: Low, Medium, High, or Critical`;
       if (normalizedPriority) {
         setFormData((prev) => ({ ...prev, priority: normalizedPriority }));
         toast.success(`Priority predicted: ${normalizedPriority}`);
+        console.log(`<----------------${normalizedPriority}----------------------->`)
       } else {
         setFormData((prev) => ({ ...prev, priority: 'Medium' }));
         toast.info('AI returned an unexpected result. Priority set to Medium (default).');
+        console.log(`<----------------Medium----------------------->`)
       }
     } catch (error) {
       console.error('Error predicting priority:', error);
@@ -161,30 +166,69 @@ Respond with ONLY one word: Low, Medium, High, or Critical`;
     setLoading(true);
 
     try {
+      let imageUrl = null;
+
+      // Upload image to Supabase if one is selected and online
+      if (formData.imageFile && !isOffline) {
+        try {
+          toast.loading('Uploading image...');
+          const uploadResult = await uploadImageToSupabase(formData.imageFile, user.uid);
+          imageUrl = uploadResult.url;
+          toast.dismiss();
+        } catch (error) {
+          toast.error(`Failed to upload image: ${error.message}`);
+          setLoading(false);
+          return;
+        }
+      }
+
       const issueData = {
         title: formData.title,
         description: formData.description,
-        image: formData.image,
+        imageUrl: imageUrl, // Store the URL instead of base64
         location: formData.location,
         priority: formData.priority || 'Medium',
         status: 'pending',
       };
 
       if (isOffline) {
-        // Save to IndexedDB
-        await addIssueToQueue(issueData);
-        await updatePendingCount();
-        toast.success('Issue saved offline. Will sync when online.');
+        // For offline mode, store base64 locally
+        if (formData.imageFile) {
+          const reader = new FileReader();
+          reader.onload = async () => {
+            issueData.imageUrl = reader.result; // Store base64 for offline
+            await addIssueToQueue(issueData);
+            await updatePendingCount();
+            toast.success('Issue saved offline. Will sync when online.');
 
-        // Reset form
-        setFormData({
-          title: '',
-          description: '',
-          image: null,
-          imagePreview: null,
-          location: formData.location, // Keep location
-          priority: '',
-        });
+            // Reset form
+            setFormData({
+              title: '',
+              description: '',
+              imageFile: null,
+              imagePreview: null,
+              location: formData.location,
+              priority: '',
+            });
+            setLoading(false);
+          };
+          reader.readAsDataURL(formData.imageFile);
+          return;
+        } else {
+          await addIssueToQueue(issueData);
+          await updatePendingCount();
+          toast.success('Issue saved offline. Will sync when online.');
+
+          // Reset form
+          setFormData({
+            title: '',
+            description: '',
+            imageFile: null,
+            imagePreview: null,
+            location: formData.location,
+            priority: '',
+          });
+        }
       } else {
         // Submit to API
         await issuesAPI.createIssue(issueData);

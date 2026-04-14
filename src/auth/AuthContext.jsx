@@ -1,47 +1,79 @@
-import { createContext, useState, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import { createContext, useEffect, useState } from "react";
+import { auth, loginWithEmail, loginWithGoogle, signUpWithEmail } from "../firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, getFirestore } from "firebase/firestore";
 
 export const AuthContext = createContext(null);
+
+const db = getFirestore();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 🔥 AUTO LOGIN (Firebase session)
   useEffect(() => {
-    // Check if user is already logged in
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Set user with default role first to allow navigation
+        setUser({
+          uid: firebaseUser.uid,
+          name: firebaseUser.displayName,
+          email: firebaseUser.email,
+          role: "citizen",
+        });
+        // Then fetch the actual role from Firestore
+        const ref = doc(db, "users", firebaseUser.uid);
+        const snap = await getDoc(ref);
+        const actualRole = snap.data()?.role || "citizen";
+        setUser(prev => ({ ...prev, role: actualRole }));
+      } else {
+        setUser(null);
+      }
 
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const login = async (googleToken) => {
+  const login = async () => {
     try {
-      const response = await authAPI.googleLogin(googleToken);
-      const { token, user: userData } = response.data;
-
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-
-      return { success: true };
-    } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: error.response?.data?.message || 'Login failed' };
+      await loginWithGoogle();
+      return { success: true, error: null };
+    } catch (err) {
+      console.error(err);
+      return { success: false, error: err };
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const loginEmail = async ({ email, password }) => {
+    try {
+      await loginWithEmail({ email, password });
+      return { success: true, error: null };
+    } catch (err) {
+      console.error(err);
+      return { success: false, error: err };
+    }
+  };
+
+  const signup = async ({ name, email, password }) => {
+    try {
+      await signUpWithEmail({ name, email, password });
+      return { success: true, error: null };
+    } catch (err) {
+      console.error(err);
+      return { success: false, error: err };
+    }
+  };
+
+  const logout = async () => {
+    await auth.signOut();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, loginEmail, signup, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
