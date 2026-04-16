@@ -192,12 +192,15 @@ Respond with ONLY one word: Low, Medium, High, or Critical`;
       };
 
       if (isOffline) {
-        // For offline mode, store base64 locally
+        // For offline mode, convert image to base64 and store locally
         if (formData.imageFile) {
           const reader = new FileReader();
           reader.onload = async () => {
-            issueData.imageUrl = reader.result; // Store base64 for offline
-            await addIssueToQueue(issueData);
+            const offlineIssueData = {
+              ...issueData,
+              imageUrl: reader.result, // Store base64 for offline - will be uploaded when online
+            };
+            await addIssueToQueue(offlineIssueData);
             await updatePendingCount();
             toast.success('Issue saved offline. Will sync when online.');
 

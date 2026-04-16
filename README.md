@@ -1,20 +1,18 @@
 # JANSEVA-INFRA
 ## Civic Issue Reporting System
 
-![Project Logo or Banner](https://via.placeholder.com/800x200?text=Civic+Issue+Reporting+System)
-
 A comprehensive web application for citizens to report civic issues, track their status, and for authorities to manage and resolve them. Built with modern web technologies for offline-first functionality, real-time updates, and AI-powered priority assessment.
 
 ## 🚀 Tech Stack
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=react,vite,firebase,supabase,tailwindcss,materialui,leaflet,nodejs" alt="Tech Stack" />
+  <img src="https://skillicons.dev/icons?i=react,vite,firebase,supabase,tailwindcss" alt="Tech Stack" />
 </p>
 
 - **Frontend**: React 18, Vite
-- **Styling**: Tailwind CSS, Material UI, Radix UI
 - **Authentication**: Firebase Auth
-- **Database**: Supabase (PostgreSQL)
+- **Database**:Firebase Firestore
+- **Image Storage**: Supabase (PostgreSQL)
 - **Offline Storage**: IndexedDB
 - **Maps**: Leaflet with React-Leaflet
 - **Routing**: React Router
@@ -24,7 +22,6 @@ A comprehensive web application for citizens to report civic issues, track their
 - **Icons**: Lucide React
 - **Charts**: Recharts
 - **Forms**: React Hook Form
-- **Date Handling**: date-fns
 
 ## 📋 Features
 
@@ -34,67 +31,73 @@ A comprehensive web application for citizens to report civic issues, track their
 - **AI-Powered Priority**: Automatic priority assessment using Gemini AI
 - **Interactive Maps**: Visualize issues on maps
 - **Image Uploads**: Attach photos to issues
-- **Responsive Design**: Mobile-friendly interface
-- **Dark/Light Theme**: Theme switching support
 
 ## 🏗️ Architecture Diagram
 
 ```mermaid
 graph TB
     A[User] --> B[React Frontend]
+
     B --> C[Firebase Auth]
-    B --> D[Supabase Database]
+    B --> D[Firebase Firestore DB]
     B --> E[IndexedDB]
     B --> F[Leaflet Maps]
     B --> G[Gemini AI]
+    B --> H[Supabase Storage]
 
-    C --> H[Authentication]
-    D --> I[Issues Storage]
-    D --> J[Image Storage]
-    E --> K[Offline Queue]
+    C --> I[Authentication]
+    D --> J[Issues & Metadata Storage]
+    H --> K[Image Storage]
 
-    B --> L[API Backend]
-    L --> M[(PostgreSQL)]
+    E --> L[Offline Queue]
 
     subgraph "Offline Flow"
-        A --> N[Report Issue]
-        N --> E
-        E --> O[Sync Service]
-        O --> D
+        A --> M[Report Issue]
+        M --> E
+        E --> N[Sync Service]
+        N --> D
+        N --> H
     end
 
     subgraph "Online Flow"
-        A --> P[View Issues]
-        P --> D
-        P --> F
+        A --> O[View Issues]
+        O --> D
+        O --> F
     end
 ```
 
 ## 📸 Screenshots
 
 ### Landing Page
-![Landing Page](https://drive.google.com/file/d/1NyVbrY3Ef91GxSZJ-pIMbyBQsjnRFl55/view?usp=drive_link)
+<img width="1407" height="856" alt="Screenshot 2026-04-14 224900" src="https://github.com/user-attachments/assets/d1795645-5dab-4e20-b5e2-d8b64a5e3092" />
+
 
 ### Login Page
-![Login Page](https://drive.google.com/file/d/1OMJUkJCVToDSySh4CKIkhVmI46EBu_Xg/view?usp=drive_link)
+<img width="884" height="912" alt="Screenshot 2026-04-14 224935" src="https://github.com/user-attachments/assets/74dbec76-4481-48f9-bfad-da0a3e8e1d69" />
+
 
 ### Dashboard
-![Dashboard](https://drive.google.com/file/d/1XoDG1KLKXL_hOjV5F69RGZFimTSNxBaR/view?usp=drive_link)
+<img width="1875" height="913" alt="Screenshot 2026-04-14 225023" src="https://github.com/user-attachments/assets/b01525b2-0f0c-465c-8e2e-5d3d0b9b45d6" />
+
 
 ### Report Issue
-![Report Issue](https://drive.google.com/file/d/1TeVVjX7KnH9YXLAJkSYyRdkQjGmvxdx1/view?usp=drive_link)
+<img width="1906" height="891" alt="Screenshot 2026-04-14 225054" src="https://github.com/user-attachments/assets/209dfd6d-04b5-46b5-ae23-5008650ee7d0" />
 
 ### My Issues
-![My Issues](https://drive.google.com/file/d/1BmbfQ3tgg0cyRTYvJ1esHEzag2wwObT5/view?usp=drive_links)
+<img width="1887" height="789" alt="Screenshot 2026-04-14 225139" src="https://github.com/user-attachments/assets/b87b19bf-ae0a-467c-9fbf-d6306e315986" />
+
 
 ### Assigned Issues (Engineer)
-![Assigned Issues](https://drive.google.com/file/d/1vZIMb9taZMFhfb6498m__MJHA9PaLO8E/view?usp=drive_link)
+<img width="1910" height="768" alt="Screenshot 2026-04-14 225250" src="https://github.com/user-attachments/assets/6b779b66-179b-4528-a22d-c81c146650f4" />
+
 
 ### Map View
-![Map View](https://drive.google.com/file/d/1Vnk3D3z-6xs3uaHBdWzfpUoc50AXEQRs/view?usp=drive_link)
+<img width="1905" height="913" alt="Screenshot 2026-04-14 225533" src="https://github.com/user-attachments/assets/dcfff5e1-1908-4081-91ea-241d180f61e8" />
+
 
 ### Issue Details
-![Issue Details](https://drive.google.com/file/d/1JJCN2xft-7QjO0YGDRi89veZXvwblvGr/view?usp=drive_link)
+<img width="1868" height="886" alt="Screenshot 2026-04-14 225342" src="https://github.com/user-attachments/assets/7286ed91-8d48-45c4-97a3-567e5eb06071" />
+
 
 ## 🔧 Prerequisites
 
