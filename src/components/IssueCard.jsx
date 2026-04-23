@@ -1,5 +1,6 @@
 import { MapPin, Calendar, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router';
+import { LocationDisplay } from './LocationDisplay';
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -62,9 +63,7 @@ export const IssueCard = ({ issue, className = '' }) => {
         {issue.location && (
           <div className="flex items-center">
             <MapPin className="h-3 w-3 mr-1" />
-            <span className="truncate max-w-[150px]">
-              {issue.location.address || `${issue.location.lat}, ${issue.location.lng}`}
-            </span>
+            <LocationDisplay location={issue.location} className="truncate max-w-[150px]" />
           </div>
         )}
         {issue.createdAt && (
@@ -82,7 +81,7 @@ export const IssueCard = ({ issue, className = '' }) => {
             alt={issue.title}
             className="w-full h-32 object-contain rounded bg-slate-100"
           />
-        </div>
+    </div>
       )}
     </Link>
   );
