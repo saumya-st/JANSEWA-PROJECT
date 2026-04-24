@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { issuesAPI } from '../services/api';
 import { toast } from 'sonner';
+import { LocationDisplay } from '../components/LocationDisplay';
 
 export const IssueDetails = () => {
   const { id } = useParams();
@@ -117,9 +118,9 @@ export const IssueDetails = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="flex items-start space-x-3">
                   <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="flex-1 overflow-hidden min-w-0">
                     <p className="text-sm font-medium text-foreground">Location</p>
-                    <p className="text-sm text-muted-foreground">{issue?.location?.address}</p>
+                    <LocationDisplay location={issue.location} className="text-sm text-muted-foreground block break-words" />
                     <p className="text-xs text-muted-foreground mt-1">
                       {issue?.location?.lat?.toFixed?.(6)}, {issue?.location?.lng?.toFixed?.(6)}
                     </p>

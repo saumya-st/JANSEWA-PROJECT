@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import { ROLES } from '../utils/roleRoutes';
 import { issuesAPI } from '../services/api';
+import { toast } from 'sonner';
+import { IssueCard } from '../components/IssueCard';
+import { SupervisorIssueCard } from '../components/SupervisorIssueCard';
 
 export const Dashboard = () => {
   const { user } = useAuth();
@@ -25,6 +28,11 @@ export const Dashboard = () => {
     completed: 0,
     critical: 0,
   });
+  const [issues, setIssues] = useState([]);
+  const [engineers, setEngineers] = useState([]);
+  const [assigningIssue, setAssigningIssue] = useState(null);
+  const [selectedEngineer, setSelectedEngineer] = useState('');
+  const [assignSubmitting, setAssignSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,7 +44,21 @@ export const Dashboard = () => {
       setLoading(true);
       if (!user?.uid) return;
 
-      const allIssues = await issuesAPI.listAllIssues({ limit: 500 });
+      const [allIssues, engineersList] = await Promise.all([
+        issuesAPI.listAllIssues({ limit: 500 }),
+        user.role === ROLES.SUPERVISOR ? issuesAPI.listEngineers() : Promise.resolve([]),
+      ]);
+
+      if (user.role === ROLES.SUPERVISOR) {
+        setEngineers(
+          (engineersList || []).map((e) => ({
+            id: e.id,
+            name: e.name || e.email || e.id,
+            email: e.email || '',
+            available: true,
+          }))
+        );
+      }
 
       const relevantIssues =
         user.role === ROLES.CITIZEN
@@ -44,6 +66,8 @@ export const Dashboard = () => {
           : user.role === ROLES.ENGINEER
           ? allIssues.filter((i) => i.assignedToUid === user.uid)
           : allIssues;
+
+      setIssues(relevantIssues);
 
       const nextStats = relevantIssues.reduce(
         (acc, issue) => {
@@ -62,6 +86,27 @@ export const Dashboard = () => {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAssignEngineer = async () => {
+    if (!selectedEngineer || !assigningIssue) {
+      toast.error('Please select an engineer');
+      return;
+    }
+
+    setAssignSubmitting(true);
+    try {
+      await issuesAPI.assignIssue(assigningIssue.id, selectedEngineer);
+      toast.success('Engineer assigned successfully!');
+      setAssigningIssue(null);
+      setSelectedEngineer('');
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error assigning engineer:', error);
+      toast.error('Failed to assign engineer');
+    } finally {
+      setAssignSubmitting(false);
     }
   };
 
@@ -95,13 +140,16 @@ export const Dashboard = () => {
     return [];
   })();
 
-  const renderStatsGrid = () => (
-    <div className={`grid grid-cols-1 md:grid-cols-${statCards.length === 3 ? '3' : '4'} gap-6 mb-8`}>
-      {statCards.map(({ key, label, icon, color }) => (
-        <StatCard key={key} icon={icon} label={label} value={stats[key] ?? 0} color={color} />
-      ))}
-    </div>
-  );
+  const renderStatsGrid = () => {
+    const gridColsClass = statCards.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-4';
+    return (
+      <div className={`grid grid-cols-1 ${gridColsClass} gap-6 mb-8`}>
+        {statCards.map(({ key, label, icon, color }) => (
+          <StatCard key={key} icon={icon} label={label} value={stats[key] ?? 0} color={color} />
+        ))}
+      </div>
+    );
+  };
 
   const renderCitizenDashboard = () => (
     <>
@@ -142,25 +190,102 @@ export const Dashboard = () => {
     </>
   );
 
-  const renderSupervisorDashboard = () => (
-    <>
-      {renderStatsGrid()}
+  const renderSupervisorDashboard = () => {
+    const unassignedIssues = issues.filter(issue => !issue.assignedToUid);
 
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-8 text-white">
-        <h2 className="text-2xl font-bold mb-2">Map Overview</h2>
-        <p className="mb-6 opacity-90">
-          View all issues on the map and assign to engineers
-        </p>
-        <Link
-          to="/map"
-          className="inline-flex items-center px-6 py-3 bg-background text-foreground font-medium rounded-lg hover:bg-accent/20 transition-colors"
-        >
-          <MapPin className="h-5 w-5 mr-2" />
-          Open Map View
-        </Link>
-      </div>
-    </>
-  );
+    return (
+      <>
+        {renderStatsGrid()}
+
+        <div className="bg-card rounded-xl border border-border p-6 mb-8 shadow-sm">
+          <h2 className="text-xl font-bold mb-4">Unassigned Issues</h2>
+          <div className="overflow-y-auto max-h-[500px] pr-2 space-y-4 custom-scrollbar">
+            {unassignedIssues.map(issue => (
+              <SupervisorIssueCard 
+                key={issue.id} 
+                issue={issue} 
+                onAssignClick={(i) => setAssigningIssue(i)} 
+              />
+            ))}
+            {unassignedIssues.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground bg-accent/5 rounded-xl border border-dashed border-border">
+                <p>No unassigned issues found.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-8 text-white mb-8">
+          <h2 className="text-2xl font-bold mb-2">Map Overview</h2>
+          <p className="mb-6 opacity-90">
+            View all issues on the map and assign to engineers
+          </p>
+          <Link
+            to="/map"
+            className="inline-flex items-center px-6 py-3 bg-background text-foreground font-medium rounded-lg hover:bg-accent/20 transition-colors"
+          >
+            <MapPin className="h-5 w-5 mr-2" />
+            Open Map View
+          </Link>
+        </div>
+
+        {/* Assign Engineer Modal */}
+        {assigningIssue && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl border border-border">
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                Assign Engineer
+              </h2>
+
+              <div className="mb-4">
+                <h3 className="font-semibold text-foreground line-clamp-1">{assigningIssue.title}</h3>
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{assigningIssue.description}</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Select Engineer
+                </label>
+                <select
+                  value={selectedEngineer}
+                  onChange={(e) => setSelectedEngineer(e.target.value)}
+                  className="w-full px-4 py-2 border border-border rounded-lg bg-input-background text-foreground focus:ring-2 focus:ring-ring focus:border-transparent"
+                >
+                  <option value="">Choose an engineer...</option>
+                  {engineers
+                    .filter((eng) => eng.available)
+                    .map((engineer) => (
+                      <option key={engineer.id} value={engineer.id}>
+                        {engineer.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleAssignEngineer}
+                  disabled={!selectedEngineer || assignSubmitting}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {assignSubmitting ? 'Assigning...' : 'Assign'}
+                </button>
+                <button
+                  onClick={() => {
+                    setAssigningIssue(null);
+                    setSelectedEngineer('');
+                  }}
+                  className="px-4 py-2 border border-border text-foreground font-medium rounded-lg hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
