@@ -1,4 +1,4 @@
-import { MapPin, Calendar, AlertCircle } from 'lucide-react';
+import { MapPin, Calendar } from 'lucide-react';
 import { Link } from 'react-router';
 import { LocationDisplay } from './LocationDisplay';
 

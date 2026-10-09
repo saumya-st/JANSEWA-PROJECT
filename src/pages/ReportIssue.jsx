@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
-import { Loader } from '../components/Loader';
 import {
   MapPin,
   Camera,
@@ -259,7 +258,7 @@ Respond with ONLY one word: Low, Medium, High, or Critical`;
               <div className="flex-1">
                 <p className="text-sm font-medium text-yellow-800">Offline Mode</p>
                 <p className="text-sm text-yellow-700 mt-1">
-                  You're offline. Issues will be saved locally and synced when connection is restored.
+                  You&apos;re offline. Issues will be saved locally and synced when connection is restored.
                   {pendingCount > 0 && ` ${pendingCount} issue(s) pending sync.`}
                 </p>
               </div>

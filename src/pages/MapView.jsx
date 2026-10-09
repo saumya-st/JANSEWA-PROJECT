@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
 import { Loader } from '../components/Loader';
-import { UserPlus, Navigation2 } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { issuesAPI } from '../services/api';
 import { toast } from 'sonner';
 import 'leaflet/dist/leaflet.css';
@@ -27,7 +27,6 @@ export const MapView = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [issues, setIssues] = useState([]);
-  const [selectedIssue, setSelectedIssue] = useState(null);
   const [engineers, setEngineers] = useState([]);
   const [assigningIssue, setAssigningIssue] = useState(null);
   const [selectedEngineer, setSelectedEngineer] = useState('');
@@ -185,7 +184,6 @@ export const MapView = () => {
                           <button
                             onClick={() => {
                               setAssigningIssue(issue);
-                              setSelectedIssue(issue);
                             }}
                             className="w-full flex items-center justify-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700"
                           >

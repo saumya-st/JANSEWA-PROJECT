@@ -7,7 +7,6 @@ import {
   MapPin,
   Calendar,
   User,
-  FileText,
   ArrowLeft,
   Clock,
 } from 'lucide-react';
