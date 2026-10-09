@@ -7,6 +7,7 @@ import {
   getDocs,
   getFirestore,
   limit as fsLimit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -66,6 +67,25 @@ export const issuesAPI = {
   listAssignedIssues: async (uid, { limit = 250 } = {}) => {
     const all = await issuesAPI.listAllIssues({ limit });
     return all.filter((issue) => issue.assignedToUid === uid);
+  },
+
+  // Real-time listeners. Each returns the Firestore unsubscribe function.
+  subscribeToIssue: (issueId, onData, onError) => {
+    const ref = doc(db, "issues", issueId);
+    return onSnapshot(
+      ref,
+      (snap) => onData(snap.exists() ? normalizeIssue(snap.id, snap.data()) : null),
+      (error) => onError?.(error)
+    );
+  },
+
+  subscribeToIssues: (onData, { limit = 250, onError } = {}) => {
+    const q = query(collection(db, "issues"), orderBy("createdAt", "desc"), fsLimit(limit));
+    return onSnapshot(
+      q,
+      (snap) => onData(snap.docs.map((d) => normalizeIssue(d.id, d.data()))),
+      (error) => onError?.(error)
+    );
   },
 
   listEngineers: async () => {

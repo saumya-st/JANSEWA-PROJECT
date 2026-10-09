@@ -18,21 +18,25 @@ export const AssignedIssues = () => {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    if (user?.uid) fetchAssignedIssues();
-  }, [user?.uid]);
+    const uid = user?.uid;
+    if (!uid) return undefined;
 
-  const fetchAssignedIssues = async () => {
-    try {
-      setLoading(true);
-      const data = await issuesAPI.listAssignedIssues(user.uid);
-      setIssues(data);
-    } catch (error) {
-      console.error('Error fetching assigned issues:', error);
-      toast.error('Failed to load assigned issues');
-    } finally {
-      setLoading(false);
-    }
-  };
+    setLoading(true);
+    const unsubscribe = issuesAPI.subscribeToIssues(
+      (all) => {
+        setIssues(all.filter((issue) => issue.assignedToUid === uid));
+        setLoading(false);
+      },
+      {
+        onError: (error) => {
+          console.error('Error fetching assigned issues:', error);
+          toast.error('Failed to load assigned issues');
+          setLoading(false);
+        },
+      }
+    );
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const filteredIssues = issues.filter((issue) => {
     if (filter === 'all') return true;
