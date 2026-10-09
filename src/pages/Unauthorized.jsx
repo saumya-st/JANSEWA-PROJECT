@@ -25,7 +25,7 @@ export const Unauthorized = () => {
         <h1 className="text-4xl font-bold text-foreground mb-4">Access Denied</h1>
 
         <p className="text-lg text-muted-foreground mb-8">
-          You don't have permission to access this page. This area is restricted to authorized users only.
+          You don&apos;t have permission to access this page. This area is restricted to authorized users only.
         </p>
 
         <div className="space-y-3">

@@ -15,7 +15,6 @@ import {
 import { ROLES } from '../utils/roleRoutes';
 import { issuesAPI } from '../services/api';
 import { toast } from 'sonner';
-import { IssueCard } from '../components/IssueCard';
 import { SupervisorIssueCard } from '../components/SupervisorIssueCard';
 
 export const Dashboard = () => {

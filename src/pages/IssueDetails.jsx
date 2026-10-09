@@ -7,7 +7,6 @@ import {
   MapPin,
   Calendar,
   User,
-  FileText,
   ArrowLeft,
   Clock,
 } from 'lucide-react';
@@ -23,21 +22,21 @@ export const IssueDetails = () => {
   const [issue, setIssue] = useState(null);
 
   useEffect(() => {
-    fetchIssueDetails();
+    setLoading(true);
+    const unsubscribe = issuesAPI.subscribeToIssue(
+      id,
+      (data) => {
+        setIssue(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching issue details:', error);
+        toast.error('Failed to load issue details');
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
   }, [id]);
-
-  const fetchIssueDetails = async () => {
-    try {
-      setLoading(true);
-      const data = await issuesAPI.getIssue(id);
-      setIssue(data);
-    } catch (error) {
-      console.error('Error fetching issue details:', error);
-      toast.error('Failed to load issue details');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatDate = (date) => {
     if (!date) return '';

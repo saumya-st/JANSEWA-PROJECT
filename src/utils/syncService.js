@@ -1,4 +1,4 @@
-import { getPendingIssues, deleteIssueFromQueue, markIssueAsSynced } from './indexedDB';
+import { getPendingIssues, deleteIssueFromQueue } from './indexedDB';
 import { issuesAPI } from '../services/api';
 import { uploadImageToSupabase } from './supabaseImageUpload';
 import { getAuth } from 'firebase/auth';

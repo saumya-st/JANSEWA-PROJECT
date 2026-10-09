@@ -1,4 +1,3 @@
-import axios from "axios";
 import { getAuth } from "firebase/auth";
 import {
   addDoc,
@@ -8,50 +7,13 @@ import {
   getDocs,
   getFirestore,
   limit as fsLimit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// 🔐 Firebase token
-api.interceptors.request.use(async (config) => {
-  const auth = getAuth();
-  const user = auth.currentUser;
-
-  if (user) {
-    const token = await user.getIdToken();
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
-
-// 🚨 handle 401
-api.interceptors.response.use(
-  (res) => res,
-  async (error) => {
-    const auth = getAuth();
-
-    if (error.response?.status === 401) {
-      await auth.signOut();
-      window.location.href = "/login";
-    }
-
-    return Promise.reject(error);
-  }
-);
 
 const db = getFirestore();
 
@@ -105,6 +67,25 @@ export const issuesAPI = {
   listAssignedIssues: async (uid, { limit = 250 } = {}) => {
     const all = await issuesAPI.listAllIssues({ limit });
     return all.filter((issue) => issue.assignedToUid === uid);
+  },
+
+  // Real-time listeners. Each returns the Firestore unsubscribe function.
+  subscribeToIssue: (issueId, onData, onError) => {
+    const ref = doc(db, "issues", issueId);
+    return onSnapshot(
+      ref,
+      (snap) => onData(snap.exists() ? normalizeIssue(snap.id, snap.data()) : null),
+      (error) => onError?.(error)
+    );
+  },
+
+  subscribeToIssues: (onData, { limit = 250, onError } = {}) => {
+    const q = query(collection(db, "issues"), orderBy("createdAt", "desc"), fsLimit(limit));
+    return onSnapshot(
+      q,
+      (snap) => onData(snap.docs.map((d) => normalizeIssue(d.id, d.data()))),
+      (error) => onError?.(error)
+    );
   },
 
   listEngineers: async () => {
@@ -225,5 +206,3 @@ export const issuesAPI = {
     return normalizeIssue(snap.id, snap.data());
   },
 };
-
-export default api;
