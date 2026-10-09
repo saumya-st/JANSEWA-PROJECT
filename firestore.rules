@@ -1,0 +1,83 @@
+rules_version = '2';
+
+// Jansewa Firestore security rules.
+//
+// Roles live in users/{uid}.role and are one of: citizen, engineer, supervisor.
+// Role changes are an admin action (Firebase console or Admin SDK); a user can
+// never write their own role through the client.
+//
+// Deploy with: firebase deploy --only firestore:rules
+// Test locally with the emulator: firebase emulators:start --only firestore
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function hasRole(role) {
+      return isSignedIn() && userRole() == role;
+    }
+
+    // ---------------------------------------------------------------------
+    // users/{uid}
+    // ---------------------------------------------------------------------
+    match /users/{uid} {
+      // Any signed-in user may read profiles. The app's listEngineers()
+      // query (where role == "engineer") runs as a supervisor or engineer,
+      // and issue cards display reporter/assignee names.
+      allow read: if isSignedIn();
+
+      // A user creates their own profile on first sign-in, always as citizen.
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'citizen';
+
+      // A user may update their own profile but never their own role.
+      allow update: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role;
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // issues/{issueId}
+    // ---------------------------------------------------------------------
+    match /issues/{issueId} {
+      // All signed-in users can read issues (dashboard, map, lists, details).
+      allow read: if isSignedIn();
+
+      // Citizens report issues under their own uid; nobody self-assigns.
+      allow create: if hasRole('citizen')
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.assignedToUid == null;
+
+      // Engineers may update only work-progress fields, and only on issues
+      // assigned to them. The field list mirrors what UpdateIssue.jsx and
+      // issuesAPI.updateIssue write.
+      allow update: if hasRole('engineer')
+        && resource.data.assignedToUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'remarks',
+          'imageUrl',
+          'completionImage',
+          'timeline',
+          'updatedAt',
+          'completedAt'
+        ]);
+
+      // Supervisors may update anything, including assignment.
+      allow update: if hasRole('supervisor');
+
+      // Issues are never deleted from the client.
+      allow delete: if false;
+    }
+  }
+}
